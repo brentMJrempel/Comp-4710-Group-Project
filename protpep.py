@@ -5,6 +5,8 @@ from keras.layers import Flatten
 from keras.layers.core import Dense, Activation, Dropout
 from keras.models import Sequential
 
+# If any char in a protein sequnce from the input file (e.g. `\n`) is not in this
+# string it should be  ignored.
 possibleAA = ['G', 'P', 'A', 'V', 'L', 'I', 'M', 'C', 'F', 'Y', 'W', 'H', 'K', 'R', 'Q', 'N', 'E', 'D', 'S', 'T']
 
 np.set_printoptions(precision=3)
@@ -12,9 +14,20 @@ np.set_printoptions(suppress=True)
 
 
 def getData(path, possibleAA, validation):
-    Xfull = []
-    Yfull = []
+    """
+    Create arrays describing input and expected output data
+
+    A tuple of 2 arrays is returned.
+    The first is [number of proteins][number of residues in a protein][number of possible amino acids]
+    It contains the input data.
+    The second is [number of proteins][number of residues in a protein]
+    It contains the output data.
+    """
+    X = None
+    Y = None
     with open(path, "r") as infile:
+        Xfull = []
+        Yfull = []
         cont = True
         while (cont):
             line = infile.readline()
@@ -35,7 +48,7 @@ def getData(path, possibleAA, validation):
                     if str.isdigit(y):
                         protBind.append(float(y))
                 Yfull.append(protBind)
-                if validation == True:
+                if validation == True: # The validation file has an extra line with more info.
                     infile.readline()
             else:
                 cont = False
@@ -81,7 +94,7 @@ model.compile(loss='binary_crossentropy', optimizer='nadam', metrics=['accuracy'
 print "Compiled"
 
 print "Fitting..."
-model.fit(X, Y, nb_epoch=400, batch_size=10)
+model.fit(X, Y, nb_epoch=400, batch_size=10, validation_split=0.1)
 scores = model.evaluate(X, Y)
 print "Fitting complete"
 
@@ -93,23 +106,7 @@ Xval, Yval = getData("TestSet_Prob.txt", possibleAA, True)
 predict = model.predict(Xval)
 print "Validation complete"
 
-sum = 0.0
-count = 0
-sumz = 0.0
-countz = 0
-for yval, p in zip(Yval, predict):
-    for yvalAA, pAA in zip(yval, p):
-        if yvalAA == 1:
-            sum += pAA
-            count += 1
-        else:
-            sumz += pAA
-            countz += 1
-print "Validation results:"
-print "  Overall sensitivity is: ", (sum / count)
-print "  Overall specificity is: ", (sumz / countz)
-
-print "  Expected binding sites for a sample protein:"
+print "  Expected binding sites for a sample protein as predicted by the model:"
 print(predict[0])
-print "  Correct binding sites for sample protein:"
+print "  Correct binding sites for sample protein from the validation data:"
 print Yval[0]
